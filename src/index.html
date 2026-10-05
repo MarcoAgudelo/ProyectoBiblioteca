@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Préstamo de Libros</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .contenedor {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .formulario {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 25px;
+            align-items: end;
+        }
+
+        .campo {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .campo label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input,
+        button {
+            padding: 12px;
+            font-size: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        input {
+            width: 100%;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .formulario > button {
+            height: 43px;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+            padding: 12px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .disponible {
+            color: green;
+            font-weight: bold;
+        }
+
+        .prestado {
+            color: red;
+            font-weight: bold;
+        }
+
+        .mensaje {
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .btn-devolver {
+            background-color: #16a34a;
+        }
+
+        .btn-devolver:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <h1>Sistema de Préstamo de Libros</h1>
+
+    <p>
+        Registra préstamos de libros y controla su disponibilidad.
+    </p>
+
+    <div class="formulario">
+
+        <div class="campo">
+            <label for="usuario">Nombre del usuario</label>
+            <input
+                type="text"
+                id="usuario"
+                placeholder="Nombre del usuario"
+            >
+        </div>
+
+        <div class="campo">
+            <label for="libro">Nombre del libro</label>
+            <input
+                type="text"
+                id="libro"
+                placeholder="Nombre del libro"
+            >
+        </div>
+
+        <button type="button" id="btnRegistrar">
+            Registrar préstamo
+        </button>
+
+    </div>
+
+    <div id="mensaje" class="mensaje"></div>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Libro</th>
+                <th>Fecha préstamo</th>
+                <th>Fecha devolución</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+
+        <tbody id="listaPrestamos"></tbody>
+
+    </table>
+
+</div>
+
+<script>
+
+    var prestamos = JSON.parse(localStorage.getItem("prestamos")) || [];
+
+    function guardarPrestamos() {
+        localStorage.setItem(
+            "prestamos",
+            JSON.stringify(prestamos)
+        );
+    }
+
+    function mostrarMensaje(texto) {
+        document.getElementById("mensaje").textContent = texto;
+    }
+
+    function registrarPrestamo() {
+
+        var usuario = document
+            .getElementById("usuario")
+            .value
+            .trim();
+
+        var libro = document
+            .getElementById("libro")
+            .value
+            .trim();
+
+        if (usuario === "" || libro === "") {
+            mostrarMensaje("Debe completar todos los campos.");
+            return;
+        }
+
+        var prestamosUsuario = prestamos.filter(function(prestamo) {
+            return prestamo.usuario.toLowerCase() === usuario.toLowerCase() &&
+                   prestamo.estado === "Prestado";
+        });
+
+        if (prestamosUsuario.length >= 3) {
+            mostrarMensaje(
+                "El usuario alcanzó el límite de 3 préstamos."
+            );
+            return;
+        }
+
+        var libroEncontrado = prestamos.find(function(prestamo) {
+            return prestamo.libro.toLowerCase() === libro.toLowerCase() &&
+                   prestamo.estado === "Prestado";
+        });
+
+        if (libroEncontrado) {
+            mostrarMensaje(
+                "El libro ya se encuentra prestado."
+            );
+            return;
+        }
+
+        var fechaPrestamo = new Date();
+
+        var fechaDevolucion = new Date(fechaPrestamo);
+
+        fechaDevolucion.setDate(
+            fechaDevolucion.getDate() + 7
+        );
+
+        var nuevoPrestamo = {
+            usuario: usuario,
+            libro: libro,
+            fechaPrestamo: fechaPrestamo.toLocaleDateString(),
+            fechaDevolucion: fechaDevolucion.toLocaleDateString(),
+            estado: "Prestado"
+        };
+
+        prestamos.push(nuevoPrestamo);
+
+        guardarPrestamos();
+
+        mostrarPrestamos();
+
+        mostrarMensaje(
+            "Préstamo registrado correctamente."
+        );
+
+        document.getElementById("usuario").value = "";
+        document.getElementById("libro").value = "";
+    }
+
+    function crearCelda(fila, texto) {
+        var celda = document.createElement("td");
+        celda.textContent = texto;
+        fila.appendChild(celda);
+        return celda;
+    }
+
+    function mostrarPrestamos() {
+
+        var tabla = document.getElementById("listaPrestamos");
+
+        tabla.textContent = "";
+
+        for (var i = 0; i < prestamos.length; i++) {
+
+            var prestamo = prestamos[i];
+
+            var fila = document.createElement("tr");
+
+            crearCelda(fila, prestamo.usuario);
+            crearCelda(fila, prestamo.libro);
+            crearCelda(fila, prestamo.fechaPrestamo);
+            crearCelda(fila, prestamo.fechaDevolucion);
+
+            var celdaEstado = crearCelda(
+                fila,
+                prestamo.estado
+            );
+
+            celdaEstado.className =
+                prestamo.estado === "Prestado"
+                    ? "prestado"
+                    : "disponible";
+
+            var celdaAccion =
+                document.createElement("td");
+
+            var boton =
+                document.createElement("button");
+
+            boton.type = "button";
+            boton.className = "btn-devolver";
+            boton.textContent = "Devolver";
+
+            if (prestamo.estado === "Disponible") {
+                boton.disabled = true;
+            }
+
+            (function(indice) {
+                boton.addEventListener(
+                    "click",
+                    function() {
+                        devolverLibro(indice);
+                    }
+                );
+            })(i);
+
+            celdaAccion.appendChild(boton);
+            fila.appendChild(celdaAccion);
+
+            tabla.appendChild(fila);
+        }
+    }
+
+    function devolverLibro(indice) {
+
+        if (!prestamos[indice]) {
+            return;
+        }
+
+        prestamos[indice].estado = "Disponible";
+
+        guardarPrestamos();
+
+        mostrarPrestamos();
+
+        mostrarMensaje(
+            "Libro devuelto correctamente."
+        );
+    }
+
+    document
+        .getElementById("btnRegistrar")
+        .addEventListener(
+            "click",
+            registrarPrestamo
+        );
+
+    mostrarPrestamos();
+
+</script>
+
+</body>
+</html>

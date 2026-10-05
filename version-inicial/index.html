@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Préstamo de Libros</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .contenedor {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .formulario {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            font-size: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+            padding: 12px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .disponible {
+            color: green;
+            font-weight: bold;
+        }
+
+        .prestado {
+            color: red;
+            font-weight: bold;
+        }
+
+        .mensaje {
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .btn-devolver {
+            background-color: #16a34a;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <h1>Sistema de Préstamo de Libros</h1>
+
+    <p>
+        Registra préstamos de libros y controla su disponibilidad.
+    </p>
+
+    <div class="formulario">
+
+        <input
+            type="text"
+            id="usuario"
+            placeholder="Nombre del usuario"
+        >
+
+        <input
+            type="text"
+            id="libro"
+            placeholder="Nombre del libro"
+        >
+
+        <select id="estadoLibro">
+            <option value="Disponible">Disponible</option>
+            <option value="Prestado">Prestado</option>
+        </select>
+
+        <button onclick="registrarPrestamo()">
+            Registrar préstamo
+        </button>
+
+    </div>
+
+    <div id="mensaje" class="mensaje"></div>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Libro</th>
+                <th>Fecha préstamo</th>
+                <th>Fecha devolución</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+
+        <tbody id="listaPrestamos"></tbody>
+
+    </table>
+
+</div>
+
+<script>
+
+    var prestamos = JSON.parse(localStorage.getItem("prestamos")) || [];
+
+    function guardarPrestamos() {
+        localStorage.setItem("prestamos", JSON.stringify(prestamos));
+    }
+
+    function registrarPrestamo() {
+
+        var usuario = document.getElementById("usuario").value;
+        var libro = document.getElementById("libro").value;
+        var estado = document.getElementById("estadoLibro").value;
+
+        var mensaje = document.getElementById("mensaje");
+
+        if (usuario === "" || libro === "") {
+            mensaje.innerHTML = "Debe completar todos los campos.";
+            return;
+        }
+
+        var prestamosUsuario = prestamos.filter(function(prestamo) {
+            return prestamo.usuario === usuario &&
+                   prestamo.estado === "Prestado";
+        });
+
+        if (prestamosUsuario.length > 3) {
+            mensaje.innerHTML =
+                "El usuario alcanzó el límite de préstamos.";
+            return;
+        }
+
+        var libroEncontrado = prestamos.find(function(prestamo) {
+            return prestamo.libro === libro;
+        });
+
+        if (libroEncontrado && libroEncontrado.estado === "Prestado") {
+            mensaje.innerHTML =
+                "El libro ya se encuentra prestado.";
+            return;
+        }
+
+        var fechaPrestamo = new Date();
+
+        var fechaDevolucion = new Date(fechaPrestamo);
+
+        fechaDevolucion.setDate(
+            fechaDevolucion.getDate() + 6
+        );
+
+        var nuevoPrestamo = {
+            usuario: usuario,
+            libro: libro,
+            fechaPrestamo: fechaPrestamo.toLocaleDateString(),
+            fechaDevolucion: fechaDevolucion.toLocaleDateString(),
+            estado: estado
+        };
+
+        prestamos.push(nuevoPrestamo);
+
+        guardarPrestamos();
+
+        mostrarPrestamos();
+
+        mensaje.innerHTML =
+            "Préstamo registrado correctamente.";
+
+        document.getElementById("usuario").value = "";
+        document.getElementById("libro").value = "";
+    }
+
+    function mostrarPrestamos() {
+
+        var tabla = document.getElementById("listaPrestamos");
+
+        tabla.innerHTML = "";
+
+        for (var i = 0; i < prestamos.length; i++) {
+
+            var prestamo = prestamos[i];
+
+            tabla.innerHTML +=
+                "<tr>" +
+                "<td>" + prestamo.usuario + "</td>" +
+                "<td>" + prestamo.libro + "</td>" +
+                "<td>" + prestamo.fechaPrestamo + "</td>" +
+                "<td>" + prestamo.fechaDevolucion + "</td>" +
+                "<td class='" +
+                (prestamo.estado === "Prestado"
+                    ? "prestado"
+                    : "disponible") +
+                "'>" +
+                prestamo.estado +
+                "</td>" +
+                "<td>" +
+                "<button class='btn-devolver' onclick='devolverLibro(" +
+                i +
+                ")'>Devolver</button>" +
+                "</td>" +
+                "</tr>";
+        }
+    }
+
+    function devolverLibro(indice) {
+
+        prestamos[indice].estado = "Disponible";
+
+        mostrarPrestamos();
+    }
+
+    mostrarPrestamos();
+
+</script>
+
+</body>
+</html>

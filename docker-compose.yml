@@ -1,0 +1,11 @@
+services:
+  tests:
+    build: .
+    container_name: biblioteca-tests
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: biblioteca-sonarqube
+    hostname: sonarqube
+    ports:
+      - "9000:9000"
